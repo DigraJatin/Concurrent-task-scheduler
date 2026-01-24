@@ -1,57 +1,59 @@
+# Concurrent-Task-Scheduler
 
-# Concurrent Task Execution
+A robust C++ framework that orchestrates parallel execution of computational workloads across multiple threads. This project showcases modern concurrent programming patterns, including thread pooling, synchronized queue management, and inter-thread communication mechanisms.
 
-This repository houses a C++ implementation of a Task Scheduler, leveraging threads to facilitate concurrent task execution. It provides a foundational framework for scheduling and executing tasks in a multi-threaded environment, demonstrating the effective use of threads, mutexes, and condition variables in C++.
+## What You Get
 
-## Features
+- **Flexible Task Processing:** Create and submit custom workloads that execute independently within a managed thread environment.
+- **Intelligent Workload Distribution:** The system automatically balances tasks across available worker threads, maximizing CPU utilization and minimizing execution latency.
+- **Worker Thread Pool:** A configurable collection of background threads continuously processes incoming workloads from a shared task queue.
+- **Thread-Safe Operations:** Built-in synchronization primitives prevent race conditions and ensure data integrity across concurrent operations.
 
-- **Task Creation and Execution:** Define tasks with specific functionalities that can be executed concurrently.
-- **Dynamic Task Scheduling:** Tasks are queued and scheduled dynamically across multiple threads for execution.
-- **Thread Pool Management:** Utilizes a pool of threads to execute tasks concurrently, optimizing resource use and execution time.
-- **Concurrency Control:** Ensures thread safety through mutexes and condition variables, managing access to the task queue.
+## Quick Start
 
-## Getting Started
+### System Requirements
+- C++11 compatible compiler or newer
+- Familiarity with multithreading concepts and C++ OOP principles
 
-### Prerequisites
+### Project Layout
+- `task.hpp/cpp` – The `Task` base class enabling custom workload definitions
+- `TaskScheduler.hpp/cpp` – Core scheduling engine managing worker threads and task queue
+- `main.cpp` – Practical examples demonstrating the scheduler in action
+- `compile.sh` – Automated build script using `g++` with pthread support
 
-- A modern C++ compiler that supports C++11 (or later).
-- Basic understanding of C++ threading and object-oriented programming.
+### Build and Run
 
-### File Structure
+**Step 1: Build the project**
+```bash
+./compile.sh
+```
+The build script compiles all source files and links pthread libraries for multi-threading support.
 
-- `task.hpp/cpp`: Defines the `Task` class for task creation and management.
-- `TaskScheduler.hpp/cpp`: Implements the Task Scheduler, managing the task queue and thread pool.
-- `main.cpp`: Demonstrates the usage of the Task Scheduler with example tasks.
-- `compile.sh`: A shell script to compile the project using `g++` and link the necessary files.
+**Step 2: Execute**
+```bash
+./Executable
+```
 
-### Compilation and Execution
+## How It Works
 
-1. **Compile the Project:**
+The architecture follows a producer-consumer pattern. Users submit `Task` objects to the scheduler, which queues them internally. A fleet of worker threads pulls tasks from this queue and processes them sequentially. Mutex locks and condition variables coordinate this activity, preventing conflicts and ensuring smooth task handoff between threads.
 
-   Use the provided `compile.sh` script to compile the project. This script compiles `main.cpp`, `task.cpp`, and `TaskScheduler.cpp` with the `-lpthread` flag to enable POSIX threading support.
+## Getting Started with Custom Tasks
 
-   ```bash
-   ./compile.sh
-   ```
+To integrate this scheduler into your application:
 
-2. **Run the Executable:**
+1. Create a new class inheriting from `Task`
+2. Override the `execute()` method with your custom logic
+3. Submit instances to the scheduler via `addTask(std::unique_ptr<Task> task)`
+4. The scheduler manages the rest—execution, threading, and resource cleanup
 
-   After compilation, run the generated executable to start the task scheduler and execute the tasks:
+All source files must reside in the same directory for proper compilation and linking.
 
-   ```bash
-   ./Executable
-   ```
+## Contributing
 
-## Implementation Note
+We welcome improvements and enhancements! To contribute:
 
-- Ensure that `task.hpp/cpp`, `TaskScheduler.hpp/cpp`, and your `main.cpp` are in the same directory. The `TaskScheduler` relies on the functionality provided by `task.hpp/cpp` for task management.
-- The `Task` class is designed to be extended for specific tasks. Each task must implement the `execute()` method, defining the task's behavior.
-- The `TaskScheduler` class manages a pool of worker threads that execute tasks from a queue. It demonstrates basic concurrency control mechanisms, such as mutexes and condition variables, to safely manage access to the shared task queue.
-
-## Usage
-
-To use the Task Scheduler in your project, define your tasks by extending the `Task` class and implementing the `execute()` method. Add tasks to the scheduler using `addTask(std::unique_ptr<Task> task)`. The scheduler automatically handles the execution of tasks across its thread pool.
-
-## Contribution
-
-Contributions to improve the Task Scheduler or extend its functionality are welcome. Please feel free to fork the repository, make changes, and submit a pull request.
+1. Clone or fork the repository
+2. Create a feature branch for your changes
+3. Implement and test your improvements
+4. Submit a pull request with a clear description of your modifications
