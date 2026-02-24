@@ -1,37 +1,64 @@
 #include "TaskScheduler.hpp"
-#include "task.hpp"
+#include <chrono>
 #include <iostream>
+#include <thread>
 
-struct MyTask1 : public Task {
-    MyTask1(const std::string &name) : Task(name) {}
+class ComputeTask : public Task {
+  public:
+    ComputeTask(const std::string &name, TaskPriority p = TaskPriority::Normal)
+        : Task(name, p) {}
 
     void execute() override {
-        std::cout << "[MyTask1]Task=" << getName() << " executed.\n";
+        std::cout << "[Compute] id=" << getId() << " name=\"" << getName()
+                  << "\" on thread " << std::this_thread::get_id() << '\n';
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 };
 
-struct MyTask2 : public Task {
-    MyTask2(const std::string &name) : Task(name) {}
+class IOTask : public Task {
+  public:
+    IOTask(const std::string &name, TaskPriority p = TaskPriority::Normal)
+        : Task(name, p) {}
 
     void execute() override {
-        std::cout << "[MyTask2]Task=" << getName() << " executed.\n";
+        std::cout << "[IO]      id=" << getId() << " name=\"" << getName()
+                  << "\" on thread " << std::this_thread::get_id() << '\n';
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 };
 
 int main() {
-    TaskScheduler scheduler(4); // 4 threads in the scheduler
+    constexpr int POOL_SIZE = 4;
+    TaskScheduler scheduler(POOL_SIZE);
 
-    scheduler.seeThreadsInfo(); // will print the thread ids of all the threads
-                                // in thread pool
+    std::cout << "=== Thread Pool (" << scheduler.poolSize()
+              << " threads) ===\n";
+    scheduler.printThreadsInfo();
+    std::cout << '\n';
 
-    // create tasks
-    for (int i = 0; i < 5; i++) {
-        auto task = std::make_unique<MyTask1>("My Task + " + std::to_string(i));
-        scheduler.addTask(std::move(task));
+    std::cout << "=== Submitting tasks ===\n";
+
+    for (int i = 0; i < 4; ++i) {
+        scheduler.addTask(std::make_unique<ComputeTask>(
+            "compute-" + std::to_string(i), TaskPriority::Normal));
     }
 
-    // print all the tasks in the queue
-    // scheduler.seeAllTasks();
+    scheduler.addTask(
+        std::make_unique<IOTask>("critical-io", TaskPriority::Critical));
+
+    scheduler.addTask(
+        std::make_unique<ComputeTask>("low-compute", TaskPriority::Low));
+
+    scheduler.addTask(
+        std::make_unique<IOTask>("high-io", TaskPriority::High));
+
+    std::cout << "Pending after submit: " << scheduler.pendingCount() << '\n';
+
+    std::cout << "\n=== Waiting for all tasks to finish ===\n";
+    scheduler.waitUntilEmpty();
+
+    std::cout << "\n=== All tasks completed ===\n";
+    scheduler.printPendingTasks();
 
     return 0;
 }

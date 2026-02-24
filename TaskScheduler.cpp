@@ -1,63 +1,76 @@
 #include "TaskScheduler.hpp"
-#include "task.hpp"
 #include <iostream>
 
-TaskScheduler::TaskScheduler(int threadCount) : currentlyRunning(true) {
-    // initialise the thread pool
+TaskScheduler::TaskScheduler(int threadCount) : running(true) {
+    threadPool.reserve(threadCount);
     for (int i = 0; i < threadCount; ++i) {
         threadPool.emplace_back(&TaskScheduler::worker, this);
     }
 }
 
-// join for all threads
-TaskScheduler::~TaskScheduler() {
-    currentlyRunning = false;
-    taskQueueStatus.notify_all(); // notify all the threads
+TaskScheduler::~TaskScheduler() { stop(); }
 
-    for (std::thread &curr : threadPool) {
-        curr.join();
+void TaskScheduler::stop() {
+    if (!running.exchange(false)) return;
+
+    queueCV.notify_all();
+    for (auto &t : threadPool) {
+        if (t.joinable()) t.join();
     }
 }
 
-// add to task queue
 void TaskScheduler::addTask(std::unique_ptr<Task> task) {
-    // lock the task queue
-    std::lock_guard<std::mutex> lock(taskQueueMutex);
-    taskQueue.push_back(std::move(task));
-    taskQueueStatus.notify_one();
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        taskQueue.push(std::move(task));
+    }
+    queueCV.notify_one();
 }
 
-// worker
 void TaskScheduler::worker() {
-    while (currentlyRunning) {
-        std::unique_ptr<Task> task = nullptr;
+    while (true) {
+        std::unique_ptr<Task> task;
         {
-            // synchronized block
-            std::unique_lock<std::mutex> lock(taskQueueMutex);
-            taskQueueStatus.wait(lock, [this]() { return !taskQueue.empty(); });
+            std::unique_lock<std::mutex> lock(queueMutex);
+            queueCV.wait(lock,
+                         [this] { return !taskQueue.empty() || !running; });
 
-            if (!currentlyRunning) {
-                return; // thread not running, exit-thread;
-            }
+            if (!running && taskQueue.empty()) return;
 
-            // fetch task from queue.
-            task = std::move(taskQueue.front());
-            taskQueue.pop_front();
+            task = std::move(const_cast<std::unique_ptr<Task> &>(
+                taskQueue.top()));
+            taskQueue.pop();
+            ++activeTasks;
         }
 
-        // execute the task
         task->execute();
+
+        --activeTasks;
+        emptyCV.notify_all();
     }
 }
 
-void TaskScheduler::seeThreadsInfo() {
-    for (std::thread &currThread : threadPool) {
-        std::cout << "ThreadId=" << currThread.get_id() << '\n';
+void TaskScheduler::waitUntilEmpty() {
+    std::unique_lock<std::mutex> lock(queueMutex);
+    emptyCV.wait(lock,
+                 [this] { return taskQueue.empty() && activeTasks == 0; });
+}
+
+size_t TaskScheduler::pendingCount() const {
+    std::lock_guard<std::mutex> lock(queueMutex);
+    return taskQueue.size();
+}
+
+size_t TaskScheduler::poolSize() const { return threadPool.size(); }
+
+void TaskScheduler::printThreadsInfo() const {
+    for (const auto &t : threadPool) {
+        std::cout << "  Thread ID: " << t.get_id() << '\n';
     }
 }
 
-void TaskScheduler::seeAllTasks() {
-    for (auto it = taskQueue.begin(); it < taskQueue.end(); it += 1) {
-        std::cout << it->get()->getName() << ' ';
-    }
+void TaskScheduler::printPendingTasks() const {
+    std::lock_guard<std::mutex> lock(queueMutex);
+    std::cout << "  Pending tasks: " << taskQueue.size() << '\n';
+    std::cout << "  Active tasks:  " << activeTasks.load() << '\n';
 }

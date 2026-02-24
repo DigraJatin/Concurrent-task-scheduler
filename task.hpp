@@ -1,27 +1,30 @@
-// Defines Tasks
-//
-// 1. Creation of Task
-// 2. Add Task to Queue
 #pragma once
+#include <atomic>
 #include <string>
+
+enum class TaskPriority { Low = 0, Normal = 1, High = 2, Critical = 3 };
 
 class Task {
   private:
     std::string taskName;
     int taskId;
+    TaskPriority priority;
 
-    static int nextTaskId;
-    static int generateUniqueTaskId();
+    static std::atomic<int> nextTaskId;
 
   public:
-    // Constructor
-    Task(std::string name);
+    Task(const std::string &name,
+         TaskPriority priority = TaskPriority::Normal);
+    virtual ~Task() = default;
 
-    virtual void execute() = 0; // user defined
+    Task(const Task &) = delete;
+    Task &operator=(const Task &) = delete;
 
-    std::string getName() const;
+    virtual void execute() = 0;
+
+    const std::string &getName() const;
     int getId() const;
+    TaskPriority getPriority() const;
 
-    // virtual destructor
-    ~Task() {}
+    bool operator<(const Task &other) const;
 };

@@ -1,59 +1,60 @@
-# Concurrent-Task-Scheduler
+# Concurrent Task Scheduler
 
-A robust C++ framework that orchestrates parallel execution of computational workloads across multiple threads. This project showcases modern concurrent programming patterns, including thread pooling, synchronized queue management, and inter-thread communication mechanisms.
+A C++ thread-pool framework implementing the **Producer-Consumer pattern** with priority-based task scheduling. Tasks are submitted into a thread-safe priority queue and executed in parallel by a configurable pool of worker threads.
 
-## What You Get
+## Features
 
-- **Flexible Task Processing:** Create and submit custom workloads that execute independently within a managed thread environment.
-- **Intelligent Workload Distribution:** The system automatically balances tasks across available worker threads, maximizing CPU utilization and minimizing execution latency.
-- **Worker Thread Pool:** A configurable collection of background threads continuously processes incoming workloads from a shared task queue.
-- **Thread-Safe Operations:** Built-in synchronization primitives prevent race conditions and ensure data integrity across concurrent operations.
+- **Priority Queue** — tasks are scheduled by priority (Critical > High > Normal > Low)
+- **Thread Pool** — fixed set of reusable worker threads (no per-task thread creation overhead)
+- **Thread-Safe** — mutex + condition variable synchronization with no data races
+- **RAII Lifecycle** — scheduler automatically joins all threads on destruction
+- **Wait Support** — `waitUntilEmpty()` blocks until every submitted task has finished
+- **Polymorphic Tasks** — derive from `Task`, override `execute()`, submit with `unique_ptr`
 
-## Quick Start
+## Project Layout
 
-### System Requirements
-- C++11 compatible compiler or newer
-- Familiarity with multithreading concepts and C++ OOP principles
-
-### Project Layout
-- `task.hpp/cpp` – The `Task` base class enabling custom workload definitions
-- `TaskScheduler.hpp/cpp` – Core scheduling engine managing worker threads and task queue
-- `main.cpp` – Practical examples demonstrating the scheduler in action
-- `compile.sh` – Automated build script using `g++` with pthread support
-
-### Build and Run
-
-**Step 1: Build the project**
-```bash
-./compile.sh
 ```
-The build script compiles all source files and links pthread libraries for multi-threading support.
-
-**Step 2: Execute**
-```bash
-./Executable
+task.hpp / task.cpp             Abstract Task base class with priority support
+TaskScheduler.hpp / .cpp        Thread pool, priority queue, synchronization
+Main.cpp                        Demo with ComputeTask and IOTask examples
+compile.sh                      Build script (g++, C++17, pthread)
+FLOW.md                         Architecture, flowcharts, and interview prep
 ```
 
-## How It Works
+## Build & Run
 
-The architecture follows a producer-consumer pattern. Users submit `Task` objects to the scheduler, which queues them internally. A fleet of worker threads pulls tasks from this queue and processes them sequentially. Mutex locks and condition variables coordinate this activity, preventing conflicts and ensuring smooth task handoff between threads.
+```bash
+./compile.sh      # compiles with g++ -std=c++17 -O2 -Wall
+./Executable       # runs the demo
+```
 
-## Getting Started with Custom Tasks
+## Usage
 
-To integrate this scheduler into your application:
+```cpp
+#include "TaskScheduler.hpp"
 
-1. Create a new class inheriting from `Task`
-2. Override the `execute()` method with your custom logic
-3. Submit instances to the scheduler via `addTask(std::unique_ptr<Task> task)`
-4. The scheduler manages the rest—execution, threading, and resource cleanup
+class MyWork : public Task {
+  public:
+    MyWork(const std::string &n) : Task(n, TaskPriority::High) {}
+    void execute() override { /* your logic */ }
+};
 
-All source files must reside in the same directory for proper compilation and linking.
+int main() {
+    TaskScheduler sched(4);
+    sched.addTask(std::make_unique<MyWork>("job-1"));
+    sched.waitUntilEmpty();
+}
+```
 
-## Contributing
+## API
 
-We welcome improvements and enhancements! To contribute:
-
-1. Clone or fork the repository
-2. Create a feature branch for your changes
-3. Implement and test your improvements
-4. Submit a pull request with a clear description of your modifications
+| Method | Description |
+|--------|-------------|
+| `TaskScheduler(int n)` | Create scheduler with `n` worker threads |
+| `addTask(unique_ptr<Task>)` | Submit a task (thread-safe) |
+| `waitUntilEmpty()` | Block until all tasks are done |
+| `stop()` | Signal shutdown, drain queue, join threads |
+| `pendingCount()` | Number of queued (not yet started) tasks |
+| `poolSize()` | Number of threads in the pool |
+| `printThreadsInfo()` | Print thread IDs |
+| `printPendingTasks()` | Print queue and active counts |

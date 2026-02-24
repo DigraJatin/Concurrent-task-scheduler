@@ -1,15 +1,14 @@
 #include "task.hpp"
 
-int Task::nextTaskId = 0;
+std::atomic<int> Task::nextTaskId{0};
 
-// Constructor
-Task::Task(std::string tname)
-    : taskName(tname), taskId(generateUniqueTaskId()) {}
+Task::Task(const std::string &name, TaskPriority prio)
+    : taskName(name), taskId(++nextTaskId), priority(prio) {}
 
-int Task::generateUniqueTaskId() { return ++nextTaskId; }
-
-// getters
+const std::string &Task::getName() const { return taskName; }
 int Task::getId() const { return taskId; }
+TaskPriority Task::getPriority() const { return priority; }
 
-std::string Task::getName() const { return taskName; }
-
+bool Task::operator<(const Task &other) const {
+    return priority < other.priority;
+}
